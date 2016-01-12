@@ -1,0 +1,26 @@
+;;;; -*- Hen -*-
+
+((egg "digraph.egg") ; This should never change
+
+ ; List here all the files that should be bundled as part of your egg.  
+
+ (files "digraph.meta" "digraph.setup" "digraph.scm" "tests")
+
+ ; Your egg's license:
+
+ (license "GPL-3")
+
+ ; Pick one from the list of categories (see below) for your egg and
+ ; enter it here.
+
+ (category data)
+
+ ; A list of eggs digraph depends on.
+
+ (needs dyn-vector matchable)
+
+ (test-depends test)
+
+ (author "Ivan Raikov")
+
+ (synopsis "Directed graph in adjacency list format."))

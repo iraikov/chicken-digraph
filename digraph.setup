@@ -1,0 +1,20 @@
+;;;; -*- Hen -*-
+
+(define (dynld-name fn)		
+  (make-pathname #f fn ##sys#load-dynamic-extension))	
+
+(compile -O2 -d0 -s digraph.scm -j digraph)
+(compile -O2 -d0 -s digraph.import.scm)
+
+(install-extension
+
+  ; Name of your extension:
+  'digraph
+
+  ; Files to install for your extension:
+  `(,(dynld-name "digraph") ,(dynld-name "digraph.import") )
+
+  ; Assoc list with properties for your extension:
+  `((version 1.16)
+    ))
+
