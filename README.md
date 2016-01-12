@@ -49,6 +49,8 @@ The returned selector procedure can take one of the following arguments:
 - `'has-node` : returns a procedure `LAMBDA N` which returns true if node `N` exists in the graph and false otherwise
 - `'node-info` : returns a procedure `LAMBDA N` which returns the metadata for node `N`
 - `'node-info-set!` : returns a procedure `LAMBDA N V` which sets the metadata for node `N`
+- `'fold-node` : returns an iterator procedure `LAMBDA F RES` which iterates over the nodes in the graph by invoking function `F` on the node number, metadata of each node, and accumulator variable `RES`
+- `'fold-edge` : returns an iterator procedure `LAMBDA F RES` which iterates over the edges in the graph by invoking function `F` on each edge and accumulator variable `RES`
 - `'foreach-node` : returns an iterator procedure `LAMBDA F` which iterates over the nodes in the graph by invoking function `F` on the node number and metadata of each node
 - `'foreach-edge` : returns an iterator procedure `LAMBDA F` which iterates over the edges in the graph by invoking function `F` on each edge
 - `'debug` : returns a list with the internal representation of the graph
