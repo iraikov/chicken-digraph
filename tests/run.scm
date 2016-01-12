@@ -3,7 +3,7 @@
 ;; Verifying the digraph package. Code adapted from the Boost graph
 ;; library dependency example.
 ;;
-;; Copyright 2007-2011 Ivan Raikov and the Okinawa Institute of Science and Technology
+;; Copyright 2007-2016 Ivan Raikov
 ;; 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -63,6 +63,14 @@
             (6 bar_cpp) (5 foo_o) (4 foo_cpp) (3 zow_h) (2 boz_h)
             (1 yow_h) (0 dax_h)))
     
+    (test "fold graph nodes"
+          ((g 'fold-nodes) (lambda (i n ax) (cons (list i n) ax)) '())
+          '((14 killerapp)
+            (13 libzigzag_a) (12 zag_o) (11 zag_cpp)
+            (10 zig_o) (9 zig_cpp) (8 libfoobar_a) (7 bar_o)
+            (6 bar_cpp) (5 foo_o) (4 foo_cpp) (3 zow_h) (2 boz_h)
+            (1 yow_h) (0 dax_h)))
+    
     ;; add the edges to the graph
     (for-each (lambda (e)
                 (let* ((ni (car e))
@@ -85,6 +93,18 @@
             (1 11 "yow_h->zag_cpp") (1 6 "yow_h->bar_cpp")
             (0 1 "dax_h->yow_h") (0 6 "dax_h->bar_cpp") (0 4 "dax_h->foo_cpp")))
 
+    (test "fold graph edges"
+          ((g 'fold-edges) (lambda (s e v ax) (cons (list s e v) ax)) '())
+          '((13 14 "libzigzag_a->killerapp") (12 13 "zag_o->libzigzag_a")
+            (11 12 "zag_cpp->zag_o") (10 13 "zig_o->libzigzag_a")
+            (9 10 "zig_cpp->zig_o") (8 13 "libfoobar_a->libzigzag_a")
+            (7 8 "bar_o->libfoobar_a") (6 7 "bar_cpp->bar_o")
+            (5 8 "foo_o->libfoobar_a") (4 5 "foo_cpp->foo_o")
+            (3 4 "zow_h->foo_cpp") (2 6 "boz_h->bar_cpp")
+            (2 9 "boz_h->zig_cpp") (2 11 "boz_h->zag_cpp")
+            (1 6 "yow_h->bar_cpp") (1 11 "yow_h->zag_cpp") 
+            (0 4 "dax_h->foo_cpp") (0 6 "dax_h->bar_cpp") (0 1 "dax_h->yow_h")  ))
+    
     ;; check roots and terminals
     (test "roots"
           ((g 'roots))

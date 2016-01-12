@@ -3,7 +3,7 @@
 ;; Directed graph in adjacency list format.
 ;; Based on code from MLRISC.
 ;;
-;; Copyright 2007-2011 Ivan Raikov and the Okinawa Institute of Science and Technology.
+;; Copyright 2007-2016 Ivan Raikov.
 ;;
 ;;
 ;; This program is free software: you can redistribute it and/or
@@ -68,10 +68,20 @@
      (list) nodes))
 
   (define (get-edges)
-    (concatenate 
+    (dynvector-fold 
+     (lambda (i st v) 
+       (match v (() st) (else (append v st)))) (list) succ))
+
+  (define (fold-nodes f init) 
+    (dynvector-fold 
+     (lambda (i st v) (f i v st))
+     init nodes))
+
+  (define (fold-edges f init)
      (dynvector-fold 
       (lambda (i st v) 
-	(match v (() st) (else (cons v st)))) (list) succ)))
+        (fold (match-lambda* (((i j info) ax) (f i j info ax))) st v))
+      init succ))
 
   (define (order)  node-count)
 
@@ -222,6 +232,8 @@
 	((exit-edges)        (lambda (x) (list)))
 	((foreach-node)      foreach-node)
         ((foreach-edge)      foreach-edge)
+	((fold-nodes)        fold-nodes)
+        ((fold-edges)        fold-edges)
 	((roots)             (lambda ()
 			       (filter-map (lambda (n)
                                              (if (null?
