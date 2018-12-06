@@ -1,0 +1,11 @@
+;;;; -*- Scheme -*-
+
+((synopsis "Directed graph in adjacency list format.")
+ (license "GPL-3")
+ (category data)
+ (dependencies dyn-vector matchable yasos srfi-1)
+ (test-dependencies test srfi-1)
+ (author "Ivan Raikov")
+ (components (extension digraph))
+ )
+

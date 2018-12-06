@@ -3,7 +3,7 @@
 ;; Directed graph in adjacency list format.
 ;; Based on code from MLRISC.
 ;;
-;; Copyright 2007-2016 Ivan Raikov.
+;; Copyright 2007-2018 Ivan Raikov.
 ;;
 ;;
 ;; This program is free software: you can redistribute it and/or
@@ -21,240 +21,299 @@
 
 (module digraph
 
- (make-digraph)
+        (digraph? make-digraph graph-name graph-info new-id!  add-node!
+                  add-edge!  remove-node!  set-in-edges!  set-out-edges!  set-entries!
+                  set-exits!  garbage-collect!  nodes edges order capacity out-edges
+                  in-edges succ pred succ-list pred-list has-edge has-node node-info
+                  node-info-set!  entries exits foreach-node
+                  foreach-edge fold-nodes fold-edges roots terminals)
 		   
- (import scheme chicken data-structures extras )
+  (import scheme (chicken base) (chicken pretty-print)
+          (only srfi-1 fold any remove filter-map )
+          dyn-vector matchable yasos)
 
- (require-extension srfi-1 dyn-vector matchable )
-
-(define (digraph:error x . rest)
-  (let ((port (open-output-string)))
-    (let loop ((objs (cons x rest)))
-      (if (null? objs)
-	  (begin
-	    (newline port)
-	    (error 'digraph (get-output-string port)))
-	  (begin (display (car objs) port)
-		 (display " " port)
-		 (loop (cdr objs)))))))
-
-(define (make-digraph name info . rest)
- (let-optionals  rest ((node-list (list)) (succ-list (list)) (pred-list (list)))
-  (define nodes    (list->dynvector node-list 'none))
-  (define succ     (list->dynvector succ-list (list)))
-  (define pred     (list->dynvector pred-list (list)))
-
-  (define node-count     0)
-  (define edge-count     0)
-  (define entries        (list))
-  (define exits          (list))
-  (define new-nodes      (list))
-  (define garbage-nodes  (list))
-
-  (define (new-id!) 
-    (match new-nodes
-	   (()      (dynvector-length nodes))
-	   ((h . t) (begin
-		      (set! new-nodes t)
-		      h))
-	   (else (digraph:error 'new-id ": invalid new-nodes " new-nodes))))
+  (define (digraph:error x . rest)
+    (let ((port (open-output-string)))
+      (let loop ((objs (cons x rest)))
+        (if (null? objs)
+            (begin
+              (newline port)
+              (error 'digraph (get-output-string port)))
+            (begin (display (car objs) port)
+                   (display " " port)
+                   (loop (cdr objs)))))))
   
-  (define (garbage-collect!) =
-    (set! new-nodes (append new-nodes garbage-nodes))
-    (set! garbage-nodes (list)))
+  (define-predicate  digraph?)
+  
+  (define-operation (graph-name graph))
+  (define-operation (graph-info graph))
+  (define-operation (new-id! graph))
+  (define-operation (add-node! graph i info))
+  (define-operation (add-edge! graph e))
+  (define-operation (remove-node! graph i))
+  (define-operation (set-in-edges! graph j edges))
+  (define-operation (set-out-edges! graph i edges))
+  (define-operation (set-entries! graph ns))
+  (define-operation (set-exits! graph ns))
+  (define-operation (garbage-collect! graph))
+  (define-operation (nodes graph))
+  (define-operation (edges graph))
+  (define-operation (order graph))
+  (define-operation (capacity graph))
+  (define-operation (out-edges graph n))
+  (define-operation (in-edges graph n))
+  (define-operation (succ graph n))
+  (define-operation (pred graph n))
+  (define-operation (succ-list graph))
+  (define-operation (pred-list graph))
+  (define-operation (has-edge graph i j))
+  (define-operation (has-node graph i))
+  (define-operation (node-info graph n))
+  (define-operation (node-info-set! graph n info))
+  (define-operation (entries graph))
+  (define-operation (exits graph))
+;  (define-operation (entry-edges graph n))
+;  (define-operation (exit-edges graph n))
+  (define-operation (foreach-node graph f))
+  (define-operation (foreach-edge graph f))
+  (define-operation (fold-nodes graph f init))
+  (define-operation (fold-edges graph f init))
+  (define-operation (roots graph))          
+  (define-operation (terminals graph))
 
-  (define (get-nodes)
-    (dynvector-fold (lambda (i st v) (if (eq? 'none v)  st  (cons (list i v) st)))
-     (list) nodes))
 
-  (define (get-edges)
-    (dynvector-fold 
-     (lambda (i st v) 
-       (match v (() st) (else (append v st)))) (list) succ))
+  (define (make-digraph name #!key
+                        (info #f)
+                        (node-list (list))
+                        (succ-list (list))
+                        (pred-list (list)))
+    
+    (define nodes-vector   (list->dynvector node-list 'none))
+    (define succ-vector    (list->dynvector succ-list (list)))
+    (define pred-vector    (list->dynvector pred-list (list)))
 
-  (define (fold-nodes f init) 
-    (dynvector-fold 
-     (lambda (i st v) (f i v st))
-     init nodes))
+    (define node-count     (make-parameter 0))
+    (define edge-count     (make-parameter 0))
+    (define entries        (make-parameter (list)))
+    (define exits          (make-parameter (list)))
+    (define new-nodes      (make-parameter (list)))
+    (define garbage-nodes  (make-parameter (list)))
 
-  (define (fold-edges f init)
-     (dynvector-fold 
-      (lambda (i st v) 
+    (define (graph-new-id!) 
+      (match (new-nodes)
+             (()      (dynvector-length nodes-vector))
+             ((h . t) (begin
+                        (new-nodes t)
+                        h))
+             (else (digraph:error 'new-id! ": invalid new-nodes " (new-nodes)))))
+  
+    (define (graph-garbage-collect!) =
+      (new-nodes (append (new-nodes) (garbage-nodes)))
+      (garbage-nodes (list)))
+
+    (define (get-nodes)
+      (dynvector-fold (lambda (i st v) (if (eq? 'none v)  st  (cons (list i v) st)))
+                      (list) nodes-vector))
+
+    (define (get-edges)
+      (dynvector-fold 
+       (lambda (i st v) 
+         (match v (() st) (else (append v st)))) (list) succ-vector))
+
+    (define (graph-fold-nodes f init) 
+      (dynvector-fold 
+       (lambda (i st v) (f i v st))
+       init nodes-vector))
+
+    (define (graph-fold-edges f init)
+      (dynvector-fold 
+       (lambda (i st v) 
         (fold (match-lambda* (((i j info) ax) (f i j info ax))) st v))
-      init succ))
+      init succ-vector))
 
-  (define (order)  node-count)
+    (define (graph-capacity) (dynvector-length nodes-vector))
 
-  (define (size)   edge-count)
+    (define (graph-add-node! i info)
+      (if (eq? 'none (dynvector-ref nodes-vector i))
+          (node-count (+ 1 (node-count))))
+      (dynvector-set! nodes-vector i info))
 
-  (define (capacity) (dynvector-length nodes))
-
-  (define (add-node! i info)
-    (if (eq? 'none (dynvector-ref nodes i))
-	(set! node-count (fx+ 1 node-count)))
-    (dynvector-set! nodes i info))
-
-  (define (add-edge! e)
-    (match e
-	   ((i j info)   
-	    (let ((oi (dynvector-ref succ i))
-		  (oj (dynvector-ref pred j)))
-	      (dynvector-set! succ i (cons e oi))
-	      (dynvector-set! pred j (cons e oj))
-	      (set! edge-count (fx+ 1 edge-count))))
+    (define (graph-add-edge! e)
+      (match e
+             ((i j info)   
+              (let ((oi (dynvector-ref succ-vector i))
+		  (oj (dynvector-ref pred-vector j)))
+	      (dynvector-set! succ-vector i (cons e oi))
+	      (dynvector-set! pred-vector j (cons e oj))
+	      (edge-count (+ 1 (edge-count)))))
 	   (else (digraph:error 'add-edge ": invalid edge " e))))
 
-  (define (set-out-edges! i edges)
-    (define (remove-pred elst j ax)
-      (match elst 
-	     (() (dynvector-set! pred j ax))
-	     (((i1 _ _) . es)  (let ((e (car elst)))
-				 (remove-pred es j (if (fx= i1 i) ax (cons e ax)))))
-	     (else   (digraph:error 'remove-pred ": invalid edge list " elst))))
+    (define (graph-set-out-edges! i edges)
+      (define (remove-pred elst j ax)
+        (match elst 
+               (() (dynvector-set! pred-vector j ax))
+               (((i1 _ _) . es)  (let ((e (car elst)))
+                                   (remove-pred es j (if (= i1 i) ax (cons e ax)))))
+               (else   (digraph:error 'remove-pred ": invalid edge list " elst))))
 
-    (define (remove-edge e)
-      (match e 
-	     ((i1 j _)  (begin
-			    (if (not (fx= i i1)) (digraph:error 'set-out-edges))
-			    (remove-pred (dynvector-ref pred j) j (list))))
-	     (else (digraph:error 'remove-edge ": invalid edge " e))))
+      (define (remove-edge e)
+        (match e 
+               ((i1 j _)  (begin
+			    (if (not (= i i1)) (digraph:error 'set-out-edges))
+			    (remove-pred (dynvector-ref pred-vector j) j (list))))
+               (else (digraph:error 'remove-edge ": invalid edge " e))))
+      
+      (define (add-pred e)
+        (match e 
+               ((_ j _)  (dynvector-set! pred-vector j (cons e (dynvector-ref pred-vector j))))
+               (else (digraph:error 'add-pred ": invalid edge " e))))
+      
+      (let ((old-edges (dynvector-ref succ-vector i)))
+        (for-each remove-edge old-edges)
+        (dynvector-set! succ-vector i edges)
+        (for-each add-pred edges)
+        (edge-count (- (+ (edge-count) (length edges)) (length old-edges)))))
 
-    (define (add-pred e)
-      (match e 
-	     ((_ j _)  (dynvector-set! pred j (cons e (dynvector-ref pred j))))
-	     (else (digraph:error 'add-pred ": invalid edge " e))))
+
+    (define (graph-set-in-edges! j edges)
+      (define (remove-succ elst i ax)
+        (match elst 
+               (() (dynvector-set! succ-vector i ax))
+               (((_ j1 _) . es)  (let ((e (car elst)))
+                                   (remove-succ es i (if (= j1 j) ax (cons e ax)))))
+               (else   (digraph:error 'remove-succ ": invalid edge list " elst))))
+
+      (define (remove-edge e)
+        (match e 
+               ((i j1 _)  (begin
+			    (if (not (= j j1)) (digraph:error 'set-in-edges))
+			    (remove-succ (dynvector-ref succ-vector i) i (list))))
+               (else (digraph:error 'remove-edge ": invalid edge " e))))
+      
+      (define (add-succ e)
+        (match e 
+               ((i _ _)  (dynvector-set! succ-vector i (cons e (dynvector-ref succ-vector i))))
+               (else (digraph:error 'add-succ ": invalid edge " e))))
+
+      (let ((old-edges (dynvector-ref pred-vector j)))
+        (for-each remove-edge old-edges)
+        (dynvector-set! pred-vector j edges)
+        (for-each add-succ edges)
+        (edge-count (- (+ (edge-count) (length edges)) (length old-edges)))))
+
+    (define (graph-remove-node! i)
+      (if (not (eq? 'none (dynvector-ref nodes-vector i)))
+          (begin
+            (graph-set-out-edges! i (list))
+            (graph-set-in-edges! i  (list))
+            (dynvector-set! nodes-vector i 'none)
+            (node-count (- (node-count) 1))
+            (garbage-nodes (cons i (garbage-nodes)))
+            )))
+  
+    (define (remove-nodes! ns) (for-each remove-node! ns))
+    (define (graph-set-entries! ns)  (entries ns))
+    (define (graph-set-exits! ns)    (exits ns))
+    (define (get-entries)      (entries))
+    (define (get-exits)        (exits))
+    (define (graph-out-edges n)      (dynvector-ref succ-vector n))
+    (define (graph-in-edges n)       (dynvector-ref pred-vector n))
+
+    (define (get-roots)
+      (filter-map
+       (lambda (n)
+         (if (null?
+              ;; check only edges from other nodes
+              (remove (o (cut = <> (car n)) car)
+                      (graph-in-edges (car n))))
+             (car n)
+             #f))
+       (get-nodes)))
+
+    (define (get-terminals)
+      (filter-map
+       (lambda (n)
+         (if (null?
+              ;; check only edges to other nodes
+              (remove (o (cut = <> (car n)) cadr)
+                      (graph-out-edges (car n))))
+             (car n)
+             #f))
+       (get-nodes)))
+  
+    (define (get-succ n)
+      (map (lambda (x) (list-ref x 1)) (dynvector-ref succ-vector n)))
+    (define (get-pred n)
+      (map (lambda (x) (list-ref x 0)) (dynvector-ref pred-vector n)))
+
+    (define (graph-has-edge i j)
+      (any (lambda (e) 
+             (match e ((_ j1 _) (= j j1))
+                    (else (digraph:error 'has-edge ": invalid edge " e))))
+           (dynvector-ref succ-vector i)))
     
-    (let ((old-edges (dynvector-ref succ i)))
-      (for-each remove-edge old-edges)
-      (dynvector-set! succ i edges)
-      (for-each add-pred edges)
-      (set! edge-count (fx- (fx+ edge-count (length edges)) (length old-edges)))))
+    (define (graph-has-node n)
+      (not (eq? 'none (dynvector-ref nodes-vector n))))
+    
+    (define (graph-node-info n)
+      (let ((info (dynvector-ref nodes-vector n)))
+        (and (not (eq? 'none info)) info)))
+    
+    (define (graph-node-info-set! n v)
+      (dynvector-set! nodes-vector n v))
 
 
-  (define (set-in-edges! j edges)
-    (define (remove-succ elst i ax)
-      (match elst 
-	     (() (dynvector-set! succ i ax))
-	     (((_ j1 _) . es)  (let ((e (car elst)))
-				 (remove-succ es i (if (fx= j1 j) ax (cons e ax)))))
-	     (else   (digraph:error 'remove-succ ": invalid edge list " elst))))
+    (define (graph-foreach-node f)
+      (dynvector-for-each
+       (lambda (i x) (if (not (eq? 'none x))  (f i x)))
+       nodes-vector))
 
-    (define (remove-edge e)
-      (match e 
-	     ((i j1 _)  (begin
-			    (if (not (fx= j j1)) (digraph:error 'set-in-edges))
-			    (remove-succ (dynvector-ref succ i) i (list))))
-	     (else (digraph:error 'remove-edge ": invalid edge " e))))
+    (define (graph-foreach-edge f)
+      (dynvector-for-each f succ-vector))
 
-    (define (add-succ e)
-      (match e 
-	     ((i _ _)  (dynvector-set! succ i (cons e (dynvector-ref succ i))))
-	     (else (digraph:error 'add-succ ": invalid edge " e))))
-
-    (let ((old-edges (dynvector-ref pred j)))
-      (for-each remove-edge old-edges)
-      (dynvector-set! pred j edges)
-      (for-each add-succ edges)
-      (set! edge-count (fx- (fx+ edge-count (length edges)) (length old-edges)))))
-
-  (define (remove-node! i)
-    (if (not (eq? 'none (dynvector-ref nodes i)))
-	(begin
-	  (set-out-edges! i (list))
-	  (set-in-edges! i  (list))
-	  (dynvector-set! nodes i 'none)
-	  (set! node-count (fx- node-count 1))
-	  (set! garbage-nodes (cons i garbage-nodes))
-	  (void))))
-  
-  (define (remove-nodes! ns) (for-each remove-node! ns))
-  (define (set-entries! ns)  (set! entries ns))
-  (define (set-exits! ns)    (set! exits ns))
-  (define (get-entries)      entries)
-  (define (get-exits)        exits)
-  (define (out-edges n)      (dynvector-ref succ n))
-  (define (in-edges n)       (dynvector-ref pred n))
-
-  (define (get-succ n)       (map (lambda (x) (list-ref x 1)) (dynvector-ref succ n)))
-  (define (get-pred n)       (map (lambda (x) (list-ref x 0)) (dynvector-ref pred n)))
-
-  (define (has-edge i j)     (any (lambda (e) 
-				    (match e ((_ j1 _) (fx= j j1))
-					   (else (digraph:error 'has-edge ": invalid edge " e))))
-				  (dynvector-ref succ i)))
-  
-  (define (has-node n)       (not (eq? 'none (dynvector-ref nodes n))))
-
-  (define (node-info n)      (let ((info (dynvector-ref nodes n)))
-			       (and (not (eq? 'none info)) info)))
-
-  (define (node-info-set! n v)   (dynvector-set! nodes n v))
-
-
-  (define (foreach-node f)   (dynvector-for-each (lambda (i x) (if (not (eq? 'none x))  (f i x)))
-						 nodes))
-
-  (define (foreach-edge f)   (dynvector-for-each f succ))
+    
+    ;; Dispatcher
+    (object
+     ((digraph? self)                #t)
+     ((graph-name self)              name)
+     ((graph-info self)              info)
+     ((new-id! self)                 (graph-new-id!))
+     ((add-node! self i info)        (graph-add-node! i info))
+     ((add-edge! self e)             (graph-add-edge! e))
+     ((remove-node! self i)          (graph-remove-node! i))
+     ((set-in-edges! self j edges)   (graph-set-in-edges! j edges))
+     ((set-out-edges! self i edges)  (graph-set-out-edges! i edges))
+     ((set-entries! self ns)         (graph-set-entries! ns))
+     ((set-exits! self ns)           (graph-set-exits! ns))
+     ((garbage-collect! self)        (graph-garbage-collect!))
+     ((nodes self)                   (get-nodes))
+     ((edges self)                   (get-edges))
+     ((order self)                   (node-count))
+     ((size self)                    (edge-count))
+     ((capacity self)                (graph-capacity))
+     ((out-edges self n)             (graph-out-edges n))
+     ((in-edges self n)              (graph-in-edges n))
+     ((succ self n)                  (get-succ n))
+     ((pred self n)                  (get-pred n))
+     ((succ-list self)               (dynvector->list succ))
+     ((pred-list self)               (dynvector->list pred))
+     ((has-edge self i j)            (graph-has-edge i j))
+     ((has-node self i)              (graph-has-node i))
+     ((node-info self i)             (graph-node-info i))
+     ((node-info-set! self i info)   (graph-node-info-set! i info))
+     ((entries self)                 (get-entries))
+     ((exits self)                   (get-exits))
+     ((foreach-node self f)          (graph-foreach-node f))
+     ((foreach-edge self f)          (graph-foreach-edge f))
+     ((fold-nodes self f init)       (graph-fold-nodes f init))
+     ((fold-edges self f init)       (graph-fold-edges f init))
+     ((roots self)                   (get-roots))
+     ((terminals self)               (get-terminals))
+     ((show self)                    (pretty-print
+                                      (list `(nodes . ,(dynvector->list nodes))
+                                            `(succ  . ,(dynvector->list succ))
+                                            `(pred  . ,(dynvector->list pred)))))
+     ))
 
   
-  ;; Dispatcher
-  (lambda (selector)
-      (case selector
-	((name)              name)
-	((graph-info)        info)
-	((new-id!)           new-id!)
-	((add-node!)         add-node!)
-	((add-edge!)         add-edge!)
-	((remove-node!)      remove-node!)
-	((set-in-edges!)     set-in-edges!)
-	((set-out-edges!)    set-out-edges!)
-	((set-entries!)      set-entries!)
-	((set-exits!)        set-exits!)
-	((garbage-collect!)  garbage-collect!)
-	((nodes)             get-nodes)
-	((edges)             get-edges)
-	((order)             order)
-	((size)              size)
-	((capacity)          capacity)
-	((out-edges)         out-edges)
-	((in-edges)          in-edges)
-	((succ)              get-succ)
-	((pred)              get-pred)
-	((succ-list)         (lambda () (dynvector->list succ)))
-	((pred-list)         (lambda () (dynvector->list pred)))
-	((has-edge)          has-edge)
-	((has-node)          has-node)
-	((node-info)         node-info)
-	((node-info-set!)    node-info-set!)
-	((entries)           get-entries)
-	((exits)             get-exits)
-	((entry-edges)       (lambda (x) (list)))
-	((exit-edges)        (lambda (x) (list)))
-	((foreach-node)      foreach-node)
-        ((foreach-edge)      foreach-edge)
-	((fold-nodes)        fold-nodes)
-        ((fold-edges)        fold-edges)
-	((roots)             (lambda ()
-			       (filter-map (lambda (n)
-                                             (if (null?
-                                                  ;; check only edges from other nodes
-                                                  (remove (o (cut fx= <> (car n)) car)
-                                                          (in-edges (car n))))
-                                                 (car n)
-                                                 #f))
-					   (get-nodes))))
-	((terminals)         (lambda ()
-			       (filter-map (lambda (n)
-                                             (if (null?
-                                                  ;; check only edges to other nodes
-                                                  (remove (o (cut fx= <> (car n)) cadr)
-                                                          (out-edges (car n))))
-                                                 (car n)
-                                                 #f))
-					   (get-nodes))))
-	((debug)             (list (cons nodes (dynvector->list nodes))
-				   (cons succ (dynvector->list succ))
-				   (cons pred (dynvector->list pred))))
-        (else
-          (digraph:error 'selector ": unknown message " selector " sent to a graph"))))))
 )

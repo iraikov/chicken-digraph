@@ -3,7 +3,7 @@
 ;; Verifying the digraph package. Code adapted from the Boost graph
 ;; library dependency example.
 ;;
-;; Copyright 2007-2016 Ivan Raikov
+;; Copyright 2007-2018 Ivan Raikov
 ;; 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -21,8 +21,8 @@
 ;;
 ;;
 
-(require-library srfi-1 digraph test)
-(import srfi-1 digraph test)
+(import scheme (chicken base) (chicken format)
+        srfi-1 digraph test)
 
 
 (define used-by
@@ -46,17 +46,15 @@
 (define node-map  (zip node-list node-ids)) 
 
 (test-group "digraph test"
-  (let ((g (make-digraph 'depgraph "dependency graph")))
+  (let ((g (make-digraph 'depgraph info: "dependency graph")))
 
     ;; add the nodes to the graph
-    (for-each (lambda (i n) ((g 'add-node!) i n))
+    (for-each (lambda (i n) (add-node! g i n))
 	      node-ids node-list)
     
-    (pp ((g 'nodes)))
-
     ;; make sure all nodes got inserted
     (test "add nodes to the graph"
-          ((g 'nodes))
+          (nodes g)
           '((14 killerapp)
             (13 libzigzag_a) (12 zag_o) (11 zag_cpp)
             (10 zig_o) (9 zig_cpp) (8 libfoobar_a) (7 bar_o)
@@ -64,7 +62,7 @@
             (1 yow_h) (0 dax_h)))
     
     (test "fold graph nodes"
-          ((g 'fold-nodes) (lambda (i n ax) (cons (list i n) ax)) '())
+          (fold-nodes g (lambda (i n ax) (cons (list i n) ax)) '())
           '((14 killerapp)
             (13 libzigzag_a) (12 zag_o) (11 zag_cpp)
             (10 zig_o) (9 zig_cpp) (8 libfoobar_a) (7 bar_o)
@@ -77,12 +75,12 @@
                        (nj (cdr e))
                        (i (car (alist-ref ni node-map)))
                        (j (car (alist-ref nj node-map))))
-                  ((g 'add-edge!) (list i j (format "~A->~A" ni nj)))))
+                  (add-edge! g (list i j (format "~A->~A" ni nj)))))
               used-by)
     
     ;; make sure all edges got correctly created
     (test "add edges to the graph"
-          ((g 'edges))
+          (edges g)
           '((13 14 "libzigzag_a->killerapp") (12 13 "zag_o->libzigzag_a")
             (11 12 "zag_cpp->zag_o") (10 13 "zig_o->libzigzag_a")
             (9 10 "zig_cpp->zig_o") (8 13 "libfoobar_a->libzigzag_a")
@@ -94,7 +92,7 @@
             (0 1 "dax_h->yow_h") (0 6 "dax_h->bar_cpp") (0 4 "dax_h->foo_cpp")))
 
     (test "fold graph edges"
-          ((g 'fold-edges) (lambda (s e v ax) (cons (list s e v) ax)) '())
+          (fold-edges g (lambda (s e v ax) (cons (list s e v) ax)) '())
           '((13 14 "libzigzag_a->killerapp") (12 13 "zag_o->libzigzag_a")
             (11 12 "zag_cpp->zag_o") (10 13 "zig_o->libzigzag_a")
             (9 10 "zig_cpp->zig_o") (8 13 "libfoobar_a->libzigzag_a")
@@ -107,19 +105,19 @@
     
     ;; check roots and terminals
     (test "roots"
-          ((g 'roots))
+          (roots g)
           '(3 2 0))
 
     (test "terminals"
-          ((g 'terminals))
+          (terminals g)
           '(14))
     
     ;; remove node 0 from graph
-    ((g 'remove-node!) 0)
+    (remove-node! g 0)
     
     ;; make sure node 0 got removed
     (test "remove node 0"
-          ((g 'nodes))
+          (nodes g)
           '((14 killerapp) (13 libzigzag_a) (12 zag_o)
             (11 zag_cpp) (10 zig_o) (9 zig_cpp) (8 libfoobar_a)
             (7 bar_o) (6 bar_cpp) (5 foo_o) (4 foo_cpp) (3 zow_h)
@@ -127,7 +125,7 @@
     
     ;; make sure the edges of node 0 got removed
     (test "make sure node 0 edges got removed"
-          ((g 'edges))
+          (edges g)
           '((13 14 "libzigzag_a->killerapp") (12 13 "zag_o->libzigzag_a")
             (11 12 "zag_cpp->zag_o") (10 13 "zig_o->libzigzag_a")
             (9 10 "zig_cpp->zig_o") (8 13 "libfoobar_a->libzigzag_a")
@@ -138,18 +136,18 @@
             (1 11 "yow_h->zag_cpp") (1 6 "yow_h->bar_cpp")))
     
     ;; remove node 2 from graph
-    ((g 'remove-node!) 2)
+    (remove-node! g 2)
     
     ;; make sure node 2 got removed
     (test "remove node 2"
-          ((g 'nodes))
+          (nodes g)
           '((14 killerapp) (13 libzigzag_a) (12 zag_o)
             (11 zag_cpp) (10 zig_o) (9 zig_cpp) (8 libfoobar_a)
             (7 bar_o) (6 bar_cpp) (5 foo_o) (4 foo_cpp) (3 zow_h) (1 yow_h)))
     
     ;; make sure the edges of node 2 got removed
     (test "make sure node 2 edges got removed"
-          ((g 'edges))
+          (edges g)
           '((13 14 "libzigzag_a->killerapp") (12 13 "zag_o->libzigzag_a")
             (11 12 "zag_cpp->zag_o") (10 13 "zig_o->libzigzag_a")
             (9 10 "zig_cpp->zig_o") (8 13 "libfoobar_a->libzigzag_a")
@@ -159,6 +157,7 @@
             (1 6 "yow_h->bar_cpp")))
     
 
-  ))
+    ))
+  
   
 (test-exit)
