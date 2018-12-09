@@ -20,37 +20,35 @@ where:
 - `SUCC-LIST` and {{PRED-LIST}} can be used to define the graph edges upon graph creation. If supplied, these arguments must be lists in which every element is of the form {{(I J INFO)}}, where {{I}} and {{J}} are node numbers, and {{INFO}} is an optional metadata object.
 
 
-The returned yasos object can take one of the following messages: 
+The returned yasos object supports the following operations:
 
 - 'name` : returns the graph name (string or symbol)
 - 'info` : returns the graph metadata (arbitrary type)
-- 'new-id!` : returns a procedure with no arguments, which returns the lowest available node number
-- 'add-node!` : returns a procedure `LAMBDA N INFO` which inserts in the graph node with number `N` and metadata `INFO`- if the node already exists in the graph, it will be overwritten with the new metadata
-- 'add-edge!` : returns a procedure `LAMBDA EDGE` which inserts in the graph the specifed edge- the edge is given by a list of the form `(I J INFO)`, where `I` and `J` are source and destination nodes, respectively, and `INFO` is edge metadata of arbitrary type
-- 'remove-node!` : returns a procedure `LAMBDA N` which removes node `N` and all its edges from the graph
-- 'nodes` : returns a procedure with no arguments, which returns a list with the nodes of the graph and their metadata
-- 'edges` : returns a procedure with no arguments, which returns a list with the edges of the graph and their metadata
-- 'roots` : returns a procedure with no arguments, which returns a list with all nodes in the graph that do not have an predecessor
-- 'terminals` : returns a procedure with no arguments, which returns a list with all nodes in the graph that do not have a successor
-- 'order` : returns a procedure with no arguments, which returns the number of nodes in the graph
-- 'size` : returns a procedure with no arguments, which returns the number of edges in the graph
-- 'capacity` : returns a procedure with no arguments, which returns the size of the underlying dynamic vector
-- 'succ` : returns a procedure `LAMBDA N` which returns a list with the successor nodes of node `N`
-- 'pred` : returns a procedure `LAMBDA N` which returns a list with the predecessor nodes of node `N`
-- 'succ-list` : returns a procedure with no arguments  which returns a list containing the successor nodes for each node.
-- 'pred-list` : returns a procedure with no arguments  which returns a list containing the predecessor nodes for each node.
-- 'out-edges` : returns a procedure `LAMBDA N` which returns a list with the outgoing edges of node `N`
-- 'in-edges` : returns a procedure `LAMBDA N` which returns a list with the incoming edges of node `N`
-- 'has-edge` : returns a procedure `LAMBDA I J` which returns true if edge `I -> J` exists in the graph and false otherwise
-- 'has-node` : returns a procedure `LAMBDA N` which returns true if node `N` exists in the graph and false otherwise
-- 'node-info` : returns a procedure `LAMBDA N` which returns the metadata for node `N`
-- 'node-info-set!` : returns a procedure `LAMBDA N V` which sets the metadata for node `N`
-- 'fold-node` : returns an iterator procedure `LAMBDA F RES` which iterates over the nodes in the graph by invoking function `F` on the node number, metadata of each node, and accumulator variable `RES`
-- 'fold-edge` : returns an iterator procedure `LAMBDA F RES` which iterates over the edges in the graph by invoking function `F` on each edge and accumulator variable `RES`
-- 'foreach-node` : returns an iterator procedure `LAMBDA F` which iterates over the nodes in the graph by invoking function `F` on the node number and metadata of each node
-- 'foreach-edge` : returns an iterator procedure `LAMBDA F` which iterates over the edges in the graph by invoking function `F` on each edge
-- 'debug` : returns a list with the internal representation of the graph
-
+- 'new-id!` : returns the lowest available node number
+- 'add-node!` : procedure `LAMBDA N INFO` which inserts in the graph node with number `N` and metadata `INFO`- if the node already exists in the graph, it will be overwritten with the new metadata
+- 'add-edge!` : procedure `LAMBDA EDGE` which inserts in the graph the specifed edge- the edge is given by a list of the form `(I J INFO)`, where `I` and `J` are source and destination nodes, respectively, and `INFO` is edge metadata of arbitrary type
+- 'remove-node!` : procedure `LAMBDA N` which removes node `N` and all its edges from the graph
+- 'nodes` : returns a list with the nodes of the graph and their metadata
+- 'edges` : returns a list with the edges of the graph and their metadata
+- 'roots` : returns a list with all nodes in the graph that do not have an predecessor
+- 'terminals` : returns a list with all nodes in the graph that do not have a successor
+- 'order` : returns the number of nodes in the graph
+- 'size` : returns the number of edges in the graph
+- 'capacity` : returns the size of the underlying dynamic vector
+- 'succ` : procedure `LAMBDA N` which returns a list with the successor nodes of node `N`
+- 'pred` : procedure `LAMBDA N` which returns a list with the predecessor nodes of node `N`
+- 'succ-list` : returns a list containing the successor nodes for each node.
+- 'pred-list` : returns a list containing the predecessor nodes for each node.
+- 'out-edges` : procedure `LAMBDA N` which returns a list with the outgoing edges of node `N`
+- 'in-edges` : procedure `LAMBDA N` which returns a list with the incoming edges of node `N`
+- 'has-edge` : procedure `LAMBDA I J` which returns true if edge `I -> J` exists in the graph and false otherwise
+- 'has-node` : procedure `LAMBDA N` which returns true if node `N` exists in the graph and false otherwise
+- 'node-info` : procedure `LAMBDA N` which returns the metadata for node `N`
+- 'node-info-set!` : procedure `LAMBDA N V` which sets the metadata for node `N`
+- 'fold-node` :  procedure `LAMBDA F RES` which iterates over the nodes in the graph by invoking function `F` on the node number, metadata of each node, and accumulator variable `RES`
+- 'fold-edge` : procedure `LAMBDA F RES` which iterates over the edges in the graph by invoking function `F` on each edge and accumulator variable `RES`
+- 'foreach-node` : procedure `LAMBDA F` which iterates over the nodes in the graph by invoking function `F` on the node number and metadata of each node
+- 'foreach-edge` : procedure `LAMBDA F` which iterates over the edges in the graph by invoking function `F` on each edge
 
 
 ## Examples
